@@ -1,33 +1,25 @@
-/* ==========================================================================
-   India Home Edition — Invite Generator
-   App logic: loads the master template, draws personalization text and a
-   QR code onto a single canvas (used for both live preview and file
-   export), validates fit, and handles JPG / PDF downloads.
-   ========================================================================== */
-
 (function () {
   const cfg = INVITE_CONFIG;
-
   const canvas = document.getElementById('inviteCanvas');
   const ctx = canvas.getContext('2d');
+
   canvas.width = cfg.template.width;
   canvas.height = cfg.template.height;
 
   const templateImage = new Image();
   let templateLoaded = false;
+  let fieldOverflow = {};
 
   const inputs = {};
-  cfg.fields.forEach((f) => {
-    inputs[f.key] = document.getElementById(f.key);
-  });
+  for (const field of cfg.fields) {
+    inputs[field.key] = document.getElementById(field.key);
+  }
 
   const errorBanner = document.getElementById('fitError');
   const downloadJpgBtn = document.getElementById('downloadJpg');
   const downloadPdfBtn = document.getElementById('downloadPdf');
   const newClientBtn = document.getElementById('newClient');
   const statusText = document.getElementById('statusText');
-
-  let fieldOverflow = {}; // key -> boolean, true if text cannot fit even at min size
 
   function loadTemplate() {
     return new Promise((resolve, reject) => {
@@ -40,55 +32,43 @@
     });
   }
 
-  // Draws text left-aligned with manual letter-spacing (works identically
-  // across browsers, unlike ctx.letterSpacing which isn't universal).
   function fillTextSpaced(text, x, y, spacing) {
     let cursor = x;
-    for (const ch of text) {
-      ctx.fillText(ch, cursor, y);
-      cursor += ctx.measureText(ch).width + spacing;
+    for (const character of text) {
+      ctx.fillText(character, cursor, y);
+      cursor += ctx.measureText(character).width + spacing;
     }
   }
 
   function measureSpacedWidth(text, spacing) {
-    let w = 0;
-    for (const ch of text) {
-      w += ctx.measureText(ch).width + spacing;
+    let width = 0;
+    for (const character of text) {
+      width += ctx.measureText(character).width + spacing;
     }
-    return w - (text.length ? spacing : 0);
+    return width - (text.length ? spacing : 0);
   }
 
-  // Finds the largest font size (within [minSize, maxSize]) at which the
-  // given text fits inside maxWidth. Returns null if even minSize overflows.
-  function fitFontSize(text, maxWidth, maxSize, minSize, weight, spacing) {
+  function fitFontSize(text, maxWidth, maxSize, minSize, fontPrefix, spacing) {
     for (let size = maxSize; size >= minSize; size--) {
-      ctx.font = `${weight} ${size}px ${cfg.text.fontFamily}`;
-      const w = spacing ? measureSpacedWidth(text, spacing) : ctx.measureText(text).width;
-      if (w <= maxWidth) return size;
+      ctx.font = `${fontPrefix} ${size}px ${cfg.text.fontFamily}`;
+      const width = spacing
+        ? measureSpacedWidth(text, spacing)
+        : ctx.measureText(text).width;
+      if (width <= maxWidth) return size;
     }
     return null;
   }
 
-  function sanitizeFilenamePart(str) {
-    return (
-      str
-        .trim()
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '') || 'Guest'
-    );
-  }
-
   function drawQrCode(values) {
     const qrCfg = cfg.qr;
-    const payload = qrCfg.buildPayload(values);
-
-    const qr = qrcode(0, 'M'); // typeNumber 0 = smallest version that fits
-    qr.addData(payload);
+    const qr = qrcode(0, 'M');
+    qr.addData(qrCfg.buildPayload(values));
     qr.make();
 
     const count = qr.getModuleCount();
     const moduleSize = Math.floor(qrCfg.size / (count + 2 * qrCfg.quietZoneModules));
     const margin = Math.floor((qrCfg.size - count * moduleSize) / 2);
+
     ctx.fillStyle = qrCfg.backgroundColor;
     ctx.fillRect(qrCfg.x, qrCfg.y, qrCfg.size, qrCfg.size);
 
@@ -106,23 +86,24 @@
       }
     }
 
-    // Caption beside the QR
-    const cap = qrCfg.caption;
+    const caption = qrCfg.caption;
+    const blockHeight = caption.lines.length * caption.lineHeight;
+    const startY = qrCfg.y + qrCfg.size / 2 - blockHeight / 2 + caption.fontSize * 0.8;
+
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = cap.color;
-    ctx.font = `${cap.weight} ${cap.fontSize}px ${cfg.text.fontFamily}`;
-    const blockHeight = cap.lines.length * cap.lineHeight;
-    const startY = (qrCfg.y + qrCfg.size / 2) - blockHeight / 2 + cap.fontSize * 0.8;
-    cap.lines.forEach((line, i) => {
-      fillTextSpaced(line, cap.x, startY + i * cap.lineHeight, cap.letterSpacing);
+    ctx.fillStyle = caption.color;
+    ctx.font = `${caption.weight} ${caption.fontSize}px ${cfg.text.fontFamily}`;
+
+    caption.lines.forEach((line, index) => {
+      fillTextSpaced(line, caption.x, startY + index * caption.lineHeight, caption.letterSpacing);
     });
   }
 
   function drawTemplate() {
     ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
 
-    // Cover the old printed rules with adjacent paper from the same template.
+    // Cover the printed guides with nearby paper before drawing the wider lines.
     const { left, right, originalRules, ruleColor } = cfg.details;
     for (const y of originalRules.centers) {
       ctx.drawImage(
@@ -136,12 +117,14 @@
     ctx.strokeStyle = ruleColor;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 4]);
+
     for (const field of cfg.fields) {
       ctx.beginPath();
       ctx.moveTo(left, field.lineY);
       ctx.lineTo(right, field.lineY);
       ctx.stroke();
     }
+
     ctx.restore();
   }
 
@@ -153,131 +136,167 @@
 
     fieldOverflow = {};
     const values = {};
-    cfg.fields.forEach((f) => {
-      values[f.key] = inputs[f.key].value.trim();
-    });
+    for (const field of cfg.fields) {
+      values[field.key] = inputs[field.key].value.trim();
+    }
 
-    cfg.fields.forEach((field) => {
-      const raw = values[field.key];
-      if (!raw) return; // leave the ruled line blank until the team types something
+    const { left, right } = cfg.details;
+    const maxWidth = right - left;
+    const { label: labelCfg, value: valueCfg, fontFamily } = cfg.text;
 
-      const labelCfg = cfg.text.label;
-      const valueCfg = cfg.text.value;
-      const labelText = field.label;
-      const { left, right } = cfg.details;
-      const maxWidth = right - left;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
 
-      // Label above the entered value.
-      const labelSize = fitFontSize(
-        labelText,
-        maxWidth,
-        labelCfg.maxSize,
-        labelCfg.minSize,
-        labelCfg.weight,
-        labelCfg.letterSpacing
-      );
-      const labelBaseline = field.lineY - labelCfg.offsetAboveLine;
+    for (const field of cfg.fields) {
+      const value = values[field.key];
+      if (!value) continue;
 
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = labelCfg.color;
-      ctx.font = `${labelCfg.weight} ${labelSize || labelCfg.minSize}px ${cfg.text.fontFamily}`;
-      fillTextSpaced(labelText, left, labelBaseline, labelCfg.letterSpacing);
+      if (field.showLabel !== false) {
+        const labelSize = fitFontSize(
+          field.label,
+          maxWidth,
+          labelCfg.maxSize,
+          labelCfg.minSize,
+          labelCfg.weight,
+          labelCfg.letterSpacing
+        );
 
-      // Entered value directly above the rule.
+        ctx.fillStyle = labelCfg.color;
+        ctx.font = `${labelCfg.weight} ${labelSize ?? labelCfg.minSize}px ${fontFamily}`;
+        fillTextSpaced(
+          field.label,
+          left,
+          field.lineY - labelCfg.offsetAboveLine,
+          labelCfg.letterSpacing
+        );
+      }
+
+      const valueFont = `${field.valueStyle ?? 'normal'} ${field.valueWeight ?? valueCfg.weight}`;
       const valueSize = fitFontSize(
-        raw,
+        value,
         maxWidth,
         valueCfg.maxSize,
         valueCfg.minSize,
-        valueCfg.weight,
+        valueFont,
         valueCfg.letterSpacing
       );
-      const valueBaseline = field.lineY - valueCfg.offsetAboveLine;
 
       if (valueSize === null) {
         fieldOverflow[field.key] = true;
-        return;
-      } else {
-        ctx.fillStyle = valueCfg.color;
-        ctx.font = `${valueCfg.weight} ${valueSize}px ${cfg.text.fontFamily}`;
-        ctx.fillText(raw, left, valueBaseline);
+        continue;
       }
-    });
 
-    const allFilled = cfg.fields.every((f) => values[f.key].length > 0);
-    if (allFilled && !Object.values(fieldOverflow).some(Boolean)) {
-      drawQrCode(values);
+      ctx.fillStyle = valueCfg.color;
+      ctx.font = `${valueFont} ${valueSize}px ${fontFamily}`;
+      ctx.fillText(value, left, field.lineY - valueCfg.offsetAboveLine);
     }
 
-    updateUIState(allFilled);
+    const allFilled = cfg.fields.every((field) => values[field.key].length > 0);
+    const overflowFields = cfg.fields.filter((field) => fieldOverflow[field.key]);
+
+    if (allFilled && overflowFields.length === 0) {
+      try {
+        drawQrCode(values);
+      } catch (error) {
+        console.error('Could not generate invitation QR code:', error);
+        const message = typeof qrcode !== 'function'
+          ? 'QR script missing. Upload qrcode-generator.js next to index.html.'
+          : 'Could not generate the QR code. Check or shorten the invite details.';
+
+        errorBanner.textContent = message;
+        errorBanner.hidden = false;
+        statusText.textContent = message;
+        downloadJpgBtn.disabled = true;
+        downloadPdfBtn.disabled = true;
+        return;
+      }
+    }
+
+    updateUIState(allFilled, overflowFields);
   }
 
-  function updateUIState(allFilled) {
-    const anyOverflow = Object.values(fieldOverflow).some(Boolean);
+  function updateUIState(allFilled, overflowFields) {
+    const hasOverflow = overflowFields.length > 0;
 
-    if (anyOverflow) {
-      const names = cfg.fields
-        .filter((f) => fieldOverflow[f.key])
-        .map((f) => f.label)
-        .join(', ');
-      errorBanner.textContent = `"${names}" is too long to fit on the card. Please shorten it so the full name is visible.`;
-      errorBanner.hidden = false;
-    } else {
-      errorBanner.hidden = true;
+    if (hasOverflow) {
+      const names = overflowFields.map((field) => field.label).join(', ');
+      errorBanner.textContent = `Please shorten the text for ${names} so it fits on the invitation.`;
     }
 
-    const canDownload = allFilled && !anyOverflow;
+    errorBanner.hidden = !hasOverflow;
+
+    const canDownload = allFilled && !hasOverflow;
     downloadJpgBtn.disabled = !canDownload;
     downloadPdfBtn.disabled = !canDownload;
 
-    if (!allFilled) {
-      statusText.textContent = 'Fill in all four fields to enable downloads and generate the QR code.';
-    } else if (anyOverflow) {
+    if (hasOverflow) {
       statusText.textContent = 'Shorten the indicated text to enable downloads.';
+    } else if (!allFilled) {
+      statusText.textContent = 'Fill in all four fields to enable downloads and generate the QR code.';
     } else {
       statusText.textContent = 'Ready to download.';
     }
   }
 
-  function getFilename(ext) {
-    const clientName = sanitizeFilenamePart(inputs.clientName.value);
-    return `${cfg.export.filenamePrefix}_${clientName}.${ext}`;
+  function getFilename(extension) {
+    const clientName = inputs.clientName.value
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'Guest';
+
+    return `${cfg.export.filenamePrefix}_${clientName}.${extension}`;
   }
 
   function triggerDownload(blob, filename) {
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
   function canvasToJpegBlob() {
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', cfg.export.jpgQuality);
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Could not export the invitation image.'));
+        }
+      }, 'image/jpeg', cfg.export.jpgQuality);
     });
   }
 
   async function handleDownloadJpg() {
-    const blob = await canvasToJpegBlob();
-    triggerDownload(blob, getFilename('jpg'));
+    const filename = getFilename('jpg');
+    try {
+      const blob = await canvasToJpegBlob();
+      triggerDownload(blob, filename);
+    } catch (error) {
+      console.error(error);
+      statusText.textContent = 'Could not download the JPG. Please try again.';
+    }
   }
 
   async function handleDownloadPdf() {
-    const blob = await canvasToJpegBlob();
-    const arrayBuffer = await blob.arrayBuffer();
-    const jpegBytes = new Uint8Array(arrayBuffer);
-    const pdfBlob = buildSinglePageImagePdf(
-      jpegBytes,
-      canvas.width,
-      canvas.height,
-      cfg.export.pdfPointsPerPixel
-    );
-    triggerDownload(pdfBlob, getFilename('pdf'));
+    const filename = getFilename('pdf');
+    try {
+      const jpeg = await canvasToJpegBlob();
+      const jpegBytes = new Uint8Array(await jpeg.arrayBuffer());
+      const pdf = buildSinglePageImagePdf(
+        jpegBytes,
+        canvas.width,
+        canvas.height,
+        cfg.export.pdfPointsPerPixel
+      );
+      triggerDownload(pdf, filename);
+    } catch (error) {
+      console.error(error);
+      statusText.textContent = 'Could not download the PDF. Please try again.';
+    }
   }
 
   function handleNewClient() {
@@ -286,10 +305,10 @@
     inputs.clientName.focus();
   }
 
-  // Wire up events
-  cfg.fields.forEach((f) => {
-    inputs[f.key].addEventListener('input', render);
-  });
+  for (const field of cfg.fields) {
+    inputs[field.key].addEventListener('input', render);
+  }
+
   downloadJpgBtn.addEventListener('click', handleDownloadJpg);
   downloadPdfBtn.addEventListener('click', handleDownloadPdf);
   newClientBtn.addEventListener('click', handleNewClient);
