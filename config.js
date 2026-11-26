@@ -10,7 +10,7 @@ const INVITE_CONFIG = {
   // the app fully self-contained, whether it's opened directly as a file
   // or served from a webserver.
   template: {
-    src: typeof TEMPLATE_DATA_URI !== 'undefined' ? TEMPLATE_DATA_URI : 'assets/template.png',
+    src: typeof TEMPLATE_DATA_URI !== 'undefined' ? TEMPLATE_DATA_URI : 'template.png',
     width: 1350,
     height: 1043,
   },
