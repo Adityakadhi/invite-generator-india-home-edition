@@ -1,70 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>India Home Edition Invite Generator</title>
-<link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>India Home Edition Invite Generator</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <header class="app-header">
+    <p class="eyebrow">Godrej REDCo</p>
+    <h1>India Home Edition Invite Generator</h1>
+    <p>Create a personalized invitation for India Home Edition in Dubai, 28–29 November.</p>
+  </header>
 
-<header class="app-header">
-  <p class="eyebrow">Godrej REDCo</p>
-  <h1>India Home Edition Invite Generator</h1>
-  <p>Create a personalized invitation postcard for the India Home Edition event in Dubai, 28th–29th November.</p>
-</header>
+  <main class="layout">
+    <section class="form-panel">
+      <h2>Invitee details</h2>
 
-<main class="layout">
+      <div class="field">
+        <label for="invitedBy">Invited By</label>
+        <input
+          type="text"
+          id="invitedBy"
+          placeholder="e.g. Godrej Properties"
+          autocomplete="off"
+        />
+      </div>
 
-  <section class="form-panel">
-    <h2>Invitee details</h2>
+      <div class="field">
+        <label for="clientName">Client Name</label>
+        <input
+          type="text"
+          id="clientName"
+          placeholder="e.g. Riya Shah"
+          autocomplete="off"
+        />
+      </div>
 
-    <div class="field">
-      <label for="invitedBy">Invite By</label>
-      <input type="text" id="invitedBy" placeholder="e.g. Aditya Kadhi" autocomplete="off" />
-    </div>
+      <div class="field">
+        <label for="associatingPartner">Associating Partner</label>
+        <input
+          type="text"
+          id="associatingPartner"
+          placeholder="e.g. Aditya Kadhi"
+          autocomplete="off"
+        />
+      </div>
 
-    <div class="field">
-      <label for="clientName">Client Name</label>
-      <input type="text" id="clientName" placeholder="e.g. Riya Shah" autocomplete="off" />
-    </div>
+      <div class="field">
+        <label for="relationshipManager">Godrej Relationship Manager</label>
+        <input
+          type="text"
+          id="relationshipManager"
+          placeholder="e.g. Arjun Mehta"
+          autocomplete="off"
+        />
+      </div>
 
-    <div class="field">
-      <label for="associatingPartner">Associating Partner</label>
-      <input type="text" id="associatingPartner" placeholder="e.g. Skyline Realty" autocomplete="off" />
-    </div>
+      <button type="button" id="newClient" class="new-client-btn">New Client</button>
+      <p class="hint">New Client clears only the client name.</p>
+      <p class="hint">Fill in all four fields to add a QR code with the invitation details. The code can be scanned offline.</p>
+    </section>
 
-    <div class="field">
-      <label for="relationshipManager">Godrej Relationship Manager</label>
-      <input type="text" id="relationshipManager" placeholder="e.g. Arjun Mehta" autocomplete="off" />
-    </div>
+    <section class="preview-panel" aria-label="Invitation preview">
+      <div class="canvas-wrap">
+        <canvas id="inviteCanvas" aria-label="Personalized invitation postcard"></canvas>
+      </div>
+      <div id="fitError" class="error-banner" role="alert" hidden></div>
+    </section>
 
-    <button type="button" id="newClient" class="new-client-btn">New Client</button>
-    <p class="hint">"New Client" clears only the client name, so you can keep the same invite-by, associating partner, and relationship manager while preparing invites for several clients.</p>
-    <p class="hint">Once all four fields are filled, a scannable QR code is added automatically. It works offline and shows all four details the moment it's scanned.</p>
-  </section>
+    <section class="actions-panel" aria-label="Download invitation">
+      <div class="actions-buttons">
+        <button type="button" id="downloadJpg" class="btn btn-primary" disabled>
+          Download JPG
+        </button>
+        <button type="button" id="downloadPdf" class="btn btn-primary" disabled>
+          Download PDF
+        </button>
+      </div>
+      <span id="statusText" class="status-text" role="status">
+        Fill in all four fields to enable downloads.
+      </span>
+    </section>
+  </main>
 
-  <section class="preview-panel">
-    <div class="canvas-wrap">
-      <canvas id="inviteCanvas" aria-label="Invitation preview"></canvas>
-    </div>
-    <div id="fitError" class="error-banner" role="alert" hidden></div>
-  </section>
-
-  <section class="actions-panel">
-    <div class="actions-buttons">
-      <button type="button" id="downloadJpg" class="btn btn-primary" disabled>Download JPG</button>
-      <button type="button" id="downloadPdf" class="btn btn-primary" disabled>Download PDF</button>
-    </div>
-    <span id="statusText" class="status-text">Fill in all three fields to enable downloads.</span>
-  </section>
-
-</main>
-
-<script src="template-data.js"></script>
-<script src="qrcode-generator.js"></script>
-<script src="config.js"></script>
-<script src="pdf.js"></script>
-<script src="app.js"></script>
+  <script src="template-data.js"></script>
+  <script src="qrcode-generator.js"></script>
+  <script src="config.js"></script>
+  <script src="pdf.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
