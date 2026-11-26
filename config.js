@@ -1,14 +1,4 @@
-/* ==========================================================================
-   India Home Edition — Invite Generator
-   Single source of truth for template geometry and text placement.
-   If the master poster artwork changes, update these numbers to match.
-   ========================================================================== */
-
 const INVITE_CONFIG = {
-  // The image is embedded as a base64 data URI (assets/template-data.js)
-  // rather than loaded by path. This keeps the canvas export untainted and
-  // the app fully self-contained, whether it's opened directly as a file
-  // or served from a webserver.
   template: {
     src: typeof TEMPLATE_DATA_URI !== 'undefined' ? TEMPLATE_DATA_URI : 'template.png',
     width: 1350,
@@ -18,13 +8,24 @@ const INVITE_CONFIG = {
   details: {
     left: 82,
     right: 630,
-    originalRules: { x: 116, width: 480, centers: [418, 497, 575, 654, 736] },
+    originalRules: {
+      x: 116,
+      width: 480,
+      centers: [418, 497, 575, 654, 736],
+    },
     ruleColor: '#9c9282',
   },
 
   fields: [
     { key: 'invitedBy', label: 'INVITED BY', lineY: 374 },
-    { key: 'clientName', label: 'CLIENT NAME', lineY: 460 },
+    {
+      key: 'clientName',
+      label: 'CLIENT NAME',
+      lineY: 460,
+      showLabel: false,
+      valueStyle: 'italic',
+      valueWeight: 700,
+    },
     { key: 'associatingPartner', label: 'ASSOCIATING PARTNER', lineY: 546 },
     { key: 'relationshipManager', label: 'GODREJ RELATIONSHIP MANAGER', lineY: 632 },
   ],
@@ -65,6 +66,7 @@ const INVITE_CONFIG = {
       color: '#343942',
       letterSpacing: 1,
     },
+
     buildPayload(values) {
       return [
         'India Home Edition | 28–29 November | 11 AM onwards',
@@ -77,13 +79,9 @@ const INVITE_CONFIG = {
     },
   },
 
-  // Export settings.
   export: {
     jpgQuality: 0.95,
     filenamePrefix: 'India_Home_Edition',
-    // Points-per-pixel used only to size the single-page PDF so it keeps
-    // the template's exact proportions. The PDF page is a plain scale of
-    // the native pixel canvas — no cropping, no letterboxing.
     pdfPointsPerPixel: 0.5,
   },
 };
